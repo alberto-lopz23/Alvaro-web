@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P&D Transporte</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Agrega en el <head> -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Antes de cerrar </body> -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="firebaseConfig.js"></script>
+    <script>
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+    </script>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <header>
+      <div class="logo">P&D Transporte</div>
+      <nav>
+        <ul>
+          <li><a href="#inicio">Inicio</a></li>
+          <li><a href="#rutas">Rutas</a></li>
+          <li><a href="#galeria">Galería</a></li>
+          <li><a href="#reservas">Reservas</a></li>
+          <li><a href="#contacto">Contacto</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <!-- Descripción -->
+    <section id="descripcion" class="descripcion">
+      <h2>Viaja con la confianza de P&D</h2>
+      <p>
+        En <strong>P&D Transporte</strong> contamos con más de 10 años
+        ofreciendo un servicio cómodo, puntual y seguro para nuestros pasajeros.
+        Nuestros conductores están altamente capacitados, y nuestros minibuses
+        están equipados para garantizar tu bienestar durante todo el trayecto.
+      </p>
+    </section>
+
+    <!-- Hero -->
+    <section id="inicio" class="hero">
+      <div class="hero-content">
+        <h1>Tu viaje, nuestra prioridad</h1>
+        <p>Confort, puntualidad y seguridad en cada ruta.</p>
+        <a href="#reservas" class="btn">Reserva tu viaje</a>
+      </div>
+    </section>
+
+    <!-- Rutas -->
+    <section id="rutas" class="rutas">
+      <h2>Nuestras Rutas</h2>
+      <div class="rutas-container">
+        <div class="ruta">
+          <h3>Santo Domingo → Santiago</h3>
+          <p>Salida diaria a las 7:00 AM y 4:00 PM</p>
+        </div>
+        <div class="ruta">
+          <h3>Santiago → Puerto Plata</h3>
+          <p>Salida diaria a las 8:30 AM y 5:30 PM</p>
+        </div>
+        <div class="ruta">
+          <h3>La Vega → Santo Domingo</h3>
+          <p>Salida diaria a las 6:00 AM y 3:00 PM</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Galería -->
+    <section id="galeria" class="galeria">
+      <h2>Nuestros Minibuses</h2>
+      <div class="galeria-grid">
+        <img src="/images/autobus.jpg" alt="Minibus 1" />
+        <img src="/images/minibus1.jpg" alt="Minibus 2" />
+        <img src="/images/minibus2.jpg" alt="Minibus 3" />
+      </div>
+    </section>
+
+    <!-- Clientes satisfechos -->
+
+    <section class="clientes">
+      <h2>Clientes Satisfechos</h2>
+      <div class="testimonios">
+        <div class="testimonio">
+          <img src="/images/clientes1.jpg" alt="clientes" />
+          <p>
+            "Excelente servicio, los conductores son muy amables y los vehículos
+            están en perfectas condiciones."
+          </p>
+          <span>- William.</span>
+        </div>
+        <div class="testimonio">
+          <img src="/images/clientes2.jpg" alt="clientes" />
+          <p>
+            "Viajar con P&D siempre es una experiencia agradable. Puntuales y
+            seguros."
+          </p>
+          <span>- Aurélie.</span>
+        </div>
+        <div class="testimonio">
+          <img src="/images/clientes3.jpg" alt="clientes" />
+          <p>
+            "Recomiendo P&D Transporte a todos mis amigos y familiares. ¡Nunca
+            me han decepcionado!"
+          </p>
+          <span>- Nicole.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ...existing code... -->
+    <!-- mapa interactivo -->
+    <div id="map" style="height: 400px"></div>
+    <div id="coordenadas" style="margin-top: 10px; font-size: 1.1em"></div>
+    <div
+      id="costo"
+      style="margin-top: 10px; font-size: 1.1em; color: #003366"
+    ></div>
+    <button id="resetMap" style="margin-top: 10px">Reiniciar selección</button>
+       <!-- Botón para abrir el modal -->
+    <button id="reservarBtn" style="margin-top: 10px; display: none;">Reservar ruta</button>
+    
+    <!-- Overlay y formulario modal, fuera de cualquier otro contenedor -->
+    <div id="modalOverlay"></div>
+    <form id="reservaForm" style="display: none; margin-top: 10px">
+      <button type="button" id="cerrarForm" style="float:right; background:#e74c3c; color:#fff; border:none; border-radius:4px; padding:4px 10px; margin-bottom:10px; cursor:pointer;">✖</button>
+      <label for="nombre">Nombre:</label>
+      <input type="text" id="nombre" name="nombre" required />
+      <label for="telefono">Teléfono:</label>
+      <input type="tel" id="telefono" name="telefono" required />
+      <label for="fechaSalida">Fecha de salida:</label>
+      <input type="date" id="fechaSalida" name="fechaSalida" required />
+      <label for="horaSalida">Hora de salida:</label>
+      <input type="time" id="horaSalida" name="horaSalida" required />
+      <label for="fechaRegreso">Fecha de regreso:</label>
+      <input type="date" id="fechaRegreso" name="fechaRegreso" />
+      <label for="horaRegreso">Hora de recogida:</label>
+      <input type="time" id="horaRegreso" name="horaRegreso" />
+      <input type="hidden" id="ruta" name="ruta" />
+      <input type="hidden" id="costo" name="costo" />
+      <button type="submit" style="background:#003366; color:#fff; border:none; border-radius:6px; padding:12px 0; width:100%; font-size:1.1em; margin-top:20px;">Guardar reserva</button>
+    </form>
+
+    <!-- Carga primero Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <!-- Luego tu script personalizado -->
+    <script>
+      var boundsRD = [
+        [17.5, -72.0], // Suroeste
+        [20.1, -68.3], // Noreste
+      ];
+
+      var map = L.map("map", {
+        center: [19.0, -70.7],
+        zoom: 8,
+        maxBounds: boundsRD,
+        maxBoundsViscosity: 1.0,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      var origenMarker, destinoMarker, rutaLine;
+
+      map.on("click", function (e) {
+        if (!origenMarker) {
+          origenMarker = L.marker(e.latlng)
+            .addTo(map)
+            .bindPopup("Origen")
+            .openPopup();
+          mostrarCoordenadas();
+        } else if (!destinoMarker) {
+          destinoMarker = L.marker(e.latlng)
+            .addTo(map)
+            .bindPopup("Destino")
+            .openPopup();
+          mostrarCoordenadas();
+          dibujarRuta();
+        }
+      });
+
+      document.getElementById("resetMap").onclick = function () {
+        if (origenMarker) {
+          map.removeLayer(origenMarker);
+          origenMarker = null;
+        }
+        if (destinoMarker) {
+          map.removeLayer(destinoMarker);
+          destinoMarker = null;
+        }
+        if (rutaLine) {
+          map.removeLayer(rutaLine);
+          rutaLine = null;
+        }
+        document.getElementById("coordenadas").innerHTML = "";
+        document.getElementById("costo").innerHTML = "";
+      };
+
+      function mostrarCoordenadas() {
+        var texto = "";
+        if (origenMarker) {
+          var o = origenMarker.getLatLng();
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${o.lat}&lon=${o.lng}`
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              texto += `<strong>Origen:</strong> ${
+                data.address.city ||
+                data.address.town ||
+                data.address.village ||
+                "Desconocido"
+              }<br>`;
+              if (destinoMarker) {
+                var d = destinoMarker.getLatLng();
+                fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${d.lat}&lon=${d.lng}`
+                )
+                  .then((response) => response.json())
+                  .then((data2) => {
+                    texto += `<strong>Destino:</strong> ${
+                      data2.address.city ||
+                      data2.address.town ||
+                      data2.address.village ||
+                      "Desconocido"
+                    }`;
+                    document.getElementById("coordenadas").innerHTML = texto;
+                    calcularCosto();
+                    document.getElementById("reservarBtn").style.display =
+                      "inline-block"; // Mostrar botón
+                  });
+              } else {
+                document.getElementById("coordenadas").innerHTML = texto;
+                calcularCosto();
+                document.getElementById("reservarBtn").style.display = "none"; // Ocultar botón
+              }
+            });
+        } else {
+          document.getElementById("coordenadas").innerHTML = "";
+          document.getElementById("costo").innerHTML = "";
+          document.getElementById("reservarBtn").style.display = "none";
+          document.getElementById("reservaForm").style.display = "none";
+        }
+      }
+
+      function calcularCosto() {
+        if (origenMarker && destinoMarker) {
+          var o = origenMarker.getLatLng();
+          var d = destinoMarker.getLatLng();
+          var distancia = map.distance(o, d) / 1000; // en kilómetros
+          var tarifaPorKm = 15; // Puedes cambiar este valor
+          var costo = Math.round(distancia * tarifaPorKm);
+          document.getElementById(
+            "costo"
+          ).innerHTML = `<strong>Costo estimado:</strong> RD$ ${costo}`;
+        } else {
+          document.getElementById("costo").innerHTML = "";
+        }
+      }
+
+           document.getElementById('reservarBtn').onclick = function() {
+        if (origenMarker && destinoMarker) {
+          document.getElementById('modalOverlay').style.display = 'block';
+          document.getElementById('reservaForm').style.display = 'block';
+          document.getElementById('ruta').value = document.getElementById('coordenadas').innerText;
+          document.getElementById('costo').value = document.getElementById('costo').innerText;
+        } else {
+          alert('Selecciona origen y destino en el mapa primero.');
+        }
+      };
+      
+      // Para cerrar el popup al hacer clic en el fondo oscuro
+      document.getElementById('modalOverlay').onclick = function() {
+        document.getElementById('modalOverlay').style.display = 'none';
+        document.getElementById('reservaForm').style.display = 'none';
+      };
+
+            document.getElementById('cerrarForm').onclick = function() {
+        document.getElementById('modalOverlay').style.display = 'none';
+        document.getElementById('reservaForm').style.display = 'none';
+      };
+                       // ...existing code...
+            document.getElementById("reservaForm").onsubmit = function (e) {
+              e.preventDefault();
+            
+              var nombre = document.getElementById("nombre").value;
+              var telefono = document.getElementById("telefono").value;
+              var fechaSalida = document.getElementById("fechaSalida").value;
+              var horaSalida = document.getElementById("horaSalida").value;
+              var fechaRegreso = document.getElementById("fechaRegreso").value;
+              var horaRegreso = document.getElementById("horaRegreso").value;
+              var ruta = document.getElementById("ruta").value;
+              var costoTexto = document.getElementById("costo").innerText;
+              var costo = costoTexto.replace(/[^\d]/g, "");
+            
+              db.ref("reservas")
+                .push({
+                  nombre: nombre,
+                  telefono: telefono,
+                  fechaSalida: fechaSalida,
+                  horaSalida: horaSalida,
+                  fechaRegreso: fechaRegreso,
+                  horaRegreso: horaRegreso,
+                  ruta: ruta,
+                  costo: costo,
+                  fecha: new Date().toISOString(),
+                })
+                .then(function () {
+                  alert("✅ Reserva guardada en Firebase");
+                  document.getElementById("reservaForm").reset();
+                  document.getElementById("reservaForm").style.display = "none";
+                })
+                .catch(function (error) {
+                  console.error("Error al guardar en Firebase:", error);
+                  alert("❌ Error al guardar la reserva.");
+                });
+            };
+            // ...existing code...
+      function dibujarRuta() {
+        if (rutaLine) {
+          map.removeLayer(rutaLine);
+          rutaLine = null;
+        }
+        if (origenMarker && destinoMarker) {
+          var puntos = [origenMarker.getLatLng(), destinoMarker.getLatLng()];
+          rutaLine = L.polyline(puntos, { color: "blue", weight: 4 }).addTo(
+            map
+          );
+          map.fitBounds(rutaLine.getBounds());
+        }
+      }
+    </script>
+    <!-- ...existing code... -->
+    <!-- Contacto -->
+    <footer id="contacto">
+      <p>📞 +1 809-000-0000 | ✉️ contacto@pydtransporte.com</p>
+      <p>© 2025 P&D Transporte. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  </body>
+</html>
