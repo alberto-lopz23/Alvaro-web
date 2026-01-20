@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reservar Viaje - P&D Transporte</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="firebaseConfig.js"></script>
+    <style>
+      body {
+        padding-top: 80px;
+      }
+      .reservar-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+      .reservar-header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .reservar-header h1 {
+        color: #003366;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+      }
+      .reservar-header p {
+        color: #666;
+        font-size: 1.1em;
+      }
+      .mapa-section {
+        background: #f9f9f9;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+      .mapa-section h2 {
+        color: #003366;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .mapa-instrucciones {
+        background: #e6f2ff;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .mapa-instrucciones p {
+        margin: 5px 0;
+        color: #003366;
+      }
+      .info-box {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .botones-mapa {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .btn-mapa {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .btn-reset {
+        background: #e74c3c;
+        color: white;
+      }
+      .btn-reset:hover {
+        background: #c0392b;
+      }
+      .btn-reservar {
+        background: #00aaff;
+        color: white;
+        display: none;
+      }
+      .btn-reservar:hover {
+        background: #007acc;
+      }
+      .rutas-predefinidas {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-top: 30px;
+      }
+      .rutas-predefinidas h3 {
+        color: #003366;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .rutas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+      .ruta-card {
+        background: #f5f5f5;
+        border-left: 5px solid #003366;
+        padding: 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .ruta-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      .ruta-card h4 {
+        color: #003366;
+        margin-bottom: 10px;
+      }
+      .ruta-card p {
+        margin: 5px 0;
+        color: #555;
+      }
+      .ruta-precio {
+        font-size: 1.3em;
+        color: #00aaff;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+      .busqueda-direcciones {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .busqueda-direcciones h3 {
+        color: #003366;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+        text-align: center;
+      }
+      .busqueda-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      .busqueda-campo {
+        display: flex;
+        flex-direction: column;
+      }
+      .busqueda-campo label {
+        margin-bottom: 5px;
+        color: #333;
+        font-weight: 600;
+      }
+      .busqueda-campo input {
+        padding: 10px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 1em;
+        transition: border-color 0.3s;
+      }
+      .busqueda-campo input:focus {
+        outline: none;
+        border-color: #00aaff;
+      }
+      .btn-buscar {
+        background: #003366;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background 0.3s;
+      }
+      .btn-buscar:hover {
+        background: #0055aa;
+      }
+      .resultado-busqueda {
+        margin-top: 10px;
+        padding: 10px;
+        background: #e8f5e9;
+        border-radius: 6px;
+        display: none;
+        color: #2e7d32;
+      }
+      .error-busqueda {
+        margin-top: 10px;
+        padding: 10px;
+        background: #ffebee;
+        border-radius: 6px;
+        display: none;
+        color: #c62828;
+      }
+      .sugerencias-container {
+        margin-top: 15px;
+        display: none;
+      }
+      .sugerencias-container h4 {
+        color: #003366;
+        margin-bottom: 10px;
+        font-size: 1em;
+      }
+      .sugerencia-item {
+        background: white;
+        border: 2px solid #e0e0e0;
+        padding: 12px;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .sugerencia-item:hover {
+        border-color: #00aaff;
+        background: #f0f8ff;
+        transform: translateX(5px);
+      }
+      .sugerencia-item strong {
+        color: #003366;
+        display: block;
+        margin-bottom: 5px;
+      }
+      .sugerencia-item span {
+        color: #666;
+        font-size: 0.9em;
+      }
+      @media (max-width: 768px) {
+        .busqueda-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <header>
+      <div class="logo">P&D Transporte</div>
+      <nav>
+        <ul>
+          <li><a href="index.html#inicio">Inicio</a></li>
+          <li><a href="index.html#rutas">Rutas</a></li>
+          <li><a href="index.html#galeria">Galería</a></li>
+          <li><a href="reservar.html">Reservas</a></li>
+          <li><a href="index.html#contacto">Contacto</a></li>
+          <li><a href="reservasAdmin.html">Iniciar sesión</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <div class="reservar-container">
+      <!-- Header -->
+      <div class="reservar-header">
+        <h1>🚐 Reserva tu Viaje</h1>
+        <p>
+          Selecciona tu ruta en el mapa o elige una de nuestras rutas
+          predefinidas
+        </p>
+      </div>
+
+      <!-- Mapa Interactivo -->
+      <div class="mapa-section">
+        <h2>📍 Mapa Interactivo</h2>
+        <div class="mapa-instrucciones">
+          <p><strong>Instrucciones:</strong></p>
+          <p>1️⃣ Haz clic en el mapa para seleccionar tu punto de origen</p>
+          <p>2️⃣ Haz clic nuevamente para seleccionar tu destino</p>
+          <p>3️⃣ Se mostrará el costo estimado y podrás reservar</p>
+        </div>
+
+        <!-- Búsqueda de Direcciones -->
+        <div class="busqueda-direcciones">
+          <h3>🔍 Buscar Dirección</h3>
+          <div class="busqueda-grid">
+            <div class="busqueda-campo">
+              <label for="buscarOrigen">📍 Dirección de Origen</label>
+              <input
+                type="text"
+                id="buscarOrigen"
+                placeholder="Ej: Calle Principal, Santo Domingo"
+              />
+            </div>
+            <div class="busqueda-campo">
+              <label for="buscarDestino">🎯 Dirección de Destino</label>
+              <input
+                type="text"
+                id="buscarDestino"
+                placeholder="Ej: Avenida Central, Santiago"
+              />
+            </div>
+          </div>
+          <div style="text-align: center">
+            <button class="btn-buscar" onclick="buscarDirecciones()">
+              🔍 Buscar en el Mapa
+            </button>
+          </div>
+          <div id="resultadoBusqueda" class="resultado-busqueda"></div>
+          <div id="errorBusqueda" class="error-busqueda"></div>
+          <div id="sugerenciasOrigen" class="sugerencias-container"></div>
+          <div id="sugerenciasDestino" class="sugerencias-container"></div>
+        </div>
+
+        <div id="map"></div>
+
+        <div class="info-box">
+          <div id="coordenadas"></div>
+          <div id="costo"></div>
+        </div>
+
+        <div class="botones-mapa">
+          <button id="resetMap" class="btn-mapa btn-reset">
+            🔄 Reiniciar selección
+          </button>
+          <button id="reservarBtn" class="btn-mapa btn-reservar">
+            ✅ Reservar esta ruta
+          </button>
+        </div>
+      </div>
+
+      <!-- Rutas Predefinidas -->
+      <div class="rutas-predefinidas">
+        <h3>🚌 Rutas Predefinidas Populares</h3>
+        <div class="rutas-grid">
+          <div
+            class="ruta-card"
+            onclick="
+              seleccionarRutaPredefinida('Santo Domingo', 'Santiago', 1200)
+            "
+          >
+            <h4>Santo Domingo → Santiago</h4>
+            <p>⏰ Salida: 7:00 AM y 4:00 PM</p>
+            <p>⏱️ Duración: ~2.5 horas</p>
+            <p class="ruta-precio">RD$ 1,200</p>
+          </div>
+          <div
+            class="ruta-card"
+            onclick="
+              seleccionarRutaPredefinida('Santiago', 'Puerto Plata', 800)
+            "
+          >
+            <h4>Santiago → Puerto Plata</h4>
+            <p>⏰ Salida: 8:30 AM y 5:30 PM</p>
+            <p>⏱️ Duración: ~1.5 horas</p>
+            <p class="ruta-precio">RD$ 800</p>
+          </div>
+          <div
+            class="ruta-card"
+            onclick="
+              seleccionarRutaPredefinida('La Vega', 'Santo Domingo', 900)
+            "
+          >
+            <h4>La Vega → Santo Domingo</h4>
+            <p>⏰ Salida: 6:00 AM y 3:00 PM</p>
+            <p>⏱️ Duración: ~2 horas</p>
+            <p class="ruta-precio">RD$ 900</p>
+          </div>
+          <div
+            class="ruta-card"
+            onclick="
+              seleccionarRutaPredefinida('Santo Domingo', 'Punta Cana', 2500)
+            "
+          >
+            <h4>Santo Domingo → Punta Cana</h4>
+            <p>⏰ Salida: 5:00 AM y 2:00 PM</p>
+            <p>⏱️ Duración: ~3 horas</p>
+            <p class="ruta-precio">RD$ 2,500</p>
+          </div>
+          <div
+            class="ruta-card"
+            onclick="seleccionarRutaPredefinida('Santiago', 'La Vega', 400)"
+          >
+            <h4>Santiago → La Vega</h4>
+            <p>⏰ Salida: 9:00 AM y 6:00 PM</p>
+            <p>⏱️ Duración: ~1 hora</p>
+            <p class="ruta-precio">RD$ 400</p>
+          </div>
+          <div
+            class="ruta-card"
+            onclick="
+              seleccionarRutaPredefinida('Santo Domingo', 'La Romana', 1500)
+            "
+          >
+            <h4>Santo Domingo → La Romana</h4>
+            <p>⏰ Salida: 7:30 AM y 4:30 PM</p>
+            <p>⏱️ Duración: ~2 horas</p>
+            <p class="ruta-precio">RD$ 1,500</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal overlay y formulario -->
+    <div id="modalOverlay"></div>
+    <form id="reservaForm">
+      <button
+        type="button"
+        id="cerrarForm"
+        style="
+          float: right;
+          background: #e74c3c;
+          color: #fff;
+          border: none;
+          border-radius: 4px;
+          padding: 4px 10px;
+          margin-bottom: 10px;
+          cursor: pointer;
+        "
+      >
+        ✖
+      </button>
+      <h3 style="color: #003366; margin-bottom: 20px; text-align: center">
+        📝 Completa tu Reserva
+      </h3>
+
+      <label for="nombre">👤 Nombre completo:</label>
+      <input
+        type="text"
+        id="nombre"
+        name="nombre"
+        placeholder="Ej: Juan Pérez"
+        required
+      />
+
+      <label for="telefono">📞 Teléfono:</label>
+      <input
+        type="tel"
+        id="telefono"
+        name="telefono"
+        placeholder="Ej: 809-123-4567"
+        required
+      />
+
+      <label for="fechaSalida">📅 Fecha de salida:</label>
+      <input type="date" id="fechaSalida" name="fechaSalida" required />
+
+      <label for="horaSalida">🕐 Hora de salida:</label>
+      <input type="time" id="horaSalida" name="horaSalida" required />
+
+      <label for="fechaRegreso">🔄 Fecha de regreso (opcional):</label>
+      <input type="date" id="fechaRegreso" name="fechaRegreso" />
+
+      <label for="horaRegreso">🕐 Hora de recogida (opcional):</label>
+      <input type="time" id="horaRegreso" name="horaRegreso" />
+
+      <label for="pasajeros">👥 Número de pasajeros:</label>
+      <input
+        type="number"
+        id="pasajeros"
+        name="pasajeros"
+        min="1"
+        max="15"
+        value="1"
+        required
+      />
+
+      <input type="hidden" id="ruta" name="ruta" />
+      <input type="hidden" id="costoHidden" name="costo" />
+
+      <div
+        style="
+          background: #e6f2ff;
+          padding: 15px;
+          border-radius: 6px;
+          margin: 15px 0;
+        "
+      >
+        <p id="resumenRuta" style="margin: 5px 0; color: #003366"></p>
+        <p
+          id="resumenCosto"
+          style="
+            margin: 5px 0;
+            color: #003366;
+            font-weight: bold;
+            font-size: 1.2em;
+          "
+        ></p>
+      </div>
+
+      <button
+        type="submit"
+        style="
+          background: #003366;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          padding: 12px 0;
+          width: 100%;
+          font-size: 1.1em;
+          margin-top: 10px;
+          cursor: pointer;
+        "
+      >
+        ✅ Confirmar Reserva
+      </button>
+    </form>
+
+    <!-- Footer -->
+    <footer id="contacto">
+      <p>📞 +1 809-000-0000 | ✉️ contacto@pydtransporte.com</p>
+      <p>© 2026 P&D Transporte. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+      // Inicializar Firebase
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      // Variables globales
+      var boundsRD = [
+        [17.5, -72.0], // Suroeste
+        [20.1, -68.3], // Noreste
+      ];
+
+      var map = L.map("map", {
+        center: [19.0, -70.7],
+        zoom: 8,
+        maxBounds: boundsRD,
+        maxBoundsViscosity: 1.0,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      var origenMarker, destinoMarker, rutaLine;
+
+      // Manejar clics en el mapa
+      map.on("click", function (e) {
+        if (!origenMarker) {
+          origenMarker = L.marker(e.latlng)
+            .addTo(map)
+            .bindPopup("📍 Origen")
+            .openPopup();
+          mostrarCoordenadas();
+        } else if (!destinoMarker) {
+          destinoMarker = L.marker(e.latlng)
+            .addTo(map)
+            .bindPopup("🎯 Destino")
+            .openPopup();
+          mostrarCoordenadas();
+          dibujarRuta();
+        }
+      });
+
+      // Botón resetear mapa
+      document.getElementById("resetMap").onclick = function () {
+        if (origenMarker) {
+          map.removeLayer(origenMarker);
+          origenMarker = null;
+        }
+        if (destinoMarker) {
+          map.removeLayer(destinoMarker);
+          destinoMarker = null;
+        }
+        if (rutaLine) {
+          map.removeLayer(rutaLine);
+          rutaLine = null;
+        }
+        document.getElementById("coordenadas").innerHTML = "";
+        document.getElementById("costo").innerHTML = "";
+        document.getElementById("reservarBtn").style.display = "none";
+
+        // Limpiar campos de búsqueda
+        document.getElementById("buscarOrigen").value = "";
+        document.getElementById("buscarDestino").value = "";
+        document.getElementById("resultadoBusqueda").style.display = "none";
+        document.getElementById("errorBusqueda").style.display = "none";
+        document.getElementById("sugerenciasOrigen").style.display = "none";
+        document.getElementById("sugerenciasDestino").style.display = "none";
+      };
+
+      // Mostrar coordenadas y ciudades
+      function mostrarCoordenadas() {
+        var texto = "";
+        if (origenMarker) {
+          var o = origenMarker.getLatLng();
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${o.lat}&lon=${o.lng}`,
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              var origenCiudad =
+                data.address.city ||
+                data.address.town ||
+                data.address.village ||
+                "Ubicación desconocida";
+              texto += `<strong>📍 Origen:</strong> ${origenCiudad}<br>`;
+
+              if (destinoMarker) {
+                var d = destinoMarker.getLatLng();
+                fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${d.lat}&lon=${d.lng}`,
+                )
+                  .then((response) => response.json())
+                  .then((data2) => {
+                    var destinoCiudad =
+                      data2.address.city ||
+                      data2.address.town ||
+                      data2.address.village ||
+                      "Ubicación desconocida";
+                    texto += `<strong>🎯 Destino:</strong> ${destinoCiudad}`;
+                    document.getElementById("coordenadas").innerHTML = texto;
+                    calcularCosto();
+                    document.getElementById("reservarBtn").style.display =
+                      "inline-block";
+                  });
+              } else {
+                document.getElementById("coordenadas").innerHTML = texto;
+                document.getElementById("reservarBtn").style.display = "none";
+              }
+            });
+        }
+      }
+
+      // Calcular costo basado en distancia
+      function calcularCosto() {
+        if (origenMarker && destinoMarker) {
+          var o = origenMarker.getLatLng();
+          var d = destinoMarker.getLatLng();
+          var distancia = map.distance(o, d) / 1000; // en kilómetros
+          var tarifaPorKm = 15;
+          var costo = Math.round(distancia * tarifaPorKm);
+          document.getElementById("costo").innerHTML =
+            `<strong>💰 Costo estimado:</strong> <span style="color: #00aaff; font-size: 1.3em;">RD$ ${costo}</span><br>` +
+            `<strong>📏 Distancia:</strong> ${distancia.toFixed(2)} km`;
+        }
+      }
+
+      // Dibujar ruta en el mapa
+      function dibujarRuta() {
+        if (rutaLine) {
+          map.removeLayer(rutaLine);
+          rutaLine = null;
+        }
+        if (origenMarker && destinoMarker) {
+          var puntos = [origenMarker.getLatLng(), destinoMarker.getLatLng()];
+          rutaLine = L.polyline(puntos, { color: "#003366", weight: 4 }).addTo(
+            map,
+          );
+          map.fitBounds(rutaLine.getBounds());
+        }
+      }
+
+      // Botón reservar desde mapa
+      document.getElementById("reservarBtn").onclick = function () {
+        if (origenMarker && destinoMarker) {
+          var rutaTexto = document.getElementById("coordenadas").innerText;
+          var costoTexto = document.getElementById("costo").innerText;
+          var costo = costoTexto.match(/RD\$ (\d+)/)[1];
+
+          document.getElementById("ruta").value = rutaTexto;
+          document.getElementById("costoHidden").value = costo;
+          document.getElementById("resumenRuta").innerHTML =
+            `<strong>Ruta:</strong> ${rutaTexto.replace("<br>", " → ")}`;
+          document.getElementById("resumenCosto").innerHTML =
+            `💰 Total: RD$ ${costo}`;
+
+          document.getElementById("modalOverlay").style.display = "block";
+          document.getElementById("reservaForm").style.display = "block";
+        }
+      };
+
+      // Función para buscar direcciones con búsqueda amplia
+      async function buscarDirecciones() {
+        var direccionOrigen = document
+          .getElementById("buscarOrigen")
+          .value.trim();
+        var direccionDestino = document
+          .getElementById("buscarDestino")
+          .value.trim();
+
+        document.getElementById("resultadoBusqueda").style.display = "none";
+        document.getElementById("errorBusqueda").style.display = "none";
+        document.getElementById("sugerenciasOrigen").style.display = "none";
+        document.getElementById("sugerenciasDestino").style.display = "none";
+
+        if (!direccionOrigen && !direccionDestino) {
+          document.getElementById("errorBusqueda").innerHTML =
+            "⚠️ Por favor ingresa al menos una dirección de origen o destino.";
+          document.getElementById("errorBusqueda").style.display = "block";
+          return;
+        }
+
+        try {
+          // Buscar origen si se proporcionó
+          if (direccionOrigen) {
+            await buscarUbicacion(direccionOrigen, "origen");
+          }
+
+          // Buscar destino si se proporcionó
+          if (direccionDestino) {
+            await buscarUbicacion(direccionDestino, "destino");
+          }
+
+          // Si ambos marcadores están colocados, mostrar info y dibujar ruta
+          if (origenMarker && destinoMarker) {
+            mostrarCoordenadas();
+            dibujarRuta();
+            document.getElementById("resultadoBusqueda").innerHTML =
+              "✅ Direcciones encontradas. Revisa el costo y haz clic en 'Reservar esta ruta'.";
+            document.getElementById("resultadoBusqueda").style.display =
+              "block";
+          } else if (origenMarker || destinoMarker) {
+            document.getElementById("resultadoBusqueda").innerHTML =
+              "✅ Dirección encontrada en el mapa.";
+            document.getElementById("resultadoBusqueda").style.display =
+              "block";
+            mostrarCoordenadas();
+          }
+        } catch (error) {
+          console.error("Error al buscar dirección:", error);
+          document.getElementById("errorBusqueda").innerHTML =
+            "❌ Error al buscar la dirección. Por favor intenta nuevamente.";
+          document.getElementById("errorBusqueda").style.display = "block";
+        }
+      }
+
+      // Función auxiliar para buscar una ubicación con múltiples intentos
+      async function buscarUbicacion(direccion, tipo) {
+        // tipo: "origen" o "destino"
+        var urls = [
+          // Intento 1: Con República Dominicana
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion + ", República Dominicana")}&limit=5&countrycodes=do`,
+          // Intento 2: Con DR (abreviado)
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion + ", DR")}&limit=5&countrycodes=do`,
+          // Intento 3: Solo la dirección con filtro de país
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion)}&limit=5&countrycodes=do`,
+          // Intento 4: Búsqueda global sin restricción
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccion)}&limit=10`,
+        ];
+
+        var resultados = null;
+
+        // Probar cada URL hasta encontrar resultados
+        for (var i = 0; i < urls.length; i++) {
+          var respuesta = await fetch(urls[i]);
+          var datos = await respuesta.json();
+
+          if (datos.length > 0) {
+            resultados = datos;
+            break;
+          }
+        }
+
+        if (!resultados || resultados.length === 0) {
+          document.getElementById("errorBusqueda").innerHTML =
+            `❌ No se encontró la dirección de ${tipo}. Prueba con: nombre de calle, ciudad o barrio.`;
+          document.getElementById("errorBusqueda").style.display = "block";
+          return;
+        }
+
+        // Si hay un solo resultado, colocarlo directamente
+        if (resultados.length === 1) {
+          colocarMarcador(resultados[0], tipo);
+        } else {
+          // Si hay múltiples resultados, mostrar sugerencias
+          mostrarSugerencias(resultados, tipo);
+        }
+      }
+
+      // Función para mostrar sugerencias
+      function mostrarSugerencias(resultados, tipo) {
+        var contenedorId =
+          tipo === "origen" ? "sugerenciasOrigen" : "sugerenciasDestino";
+        var contenedor = document.getElementById(contenedorId);
+        var emoji = tipo === "origen" ? "📍" : "🎯";
+
+        var html = `<h4>${emoji} Selecciona la ubicación de ${tipo}:</h4>`;
+
+        // Mostrar máximo 5 sugerencias
+        for (var i = 0; i < Math.min(5, resultados.length); i++) {
+          var resultado = resultados[i];
+          var nombreCorto = resultado.display_name
+            .split(",")
+            .slice(0, 3)
+            .join(",");
+          html += `
+            <div class="sugerencia-item" onclick='seleccionarSugerencia(${JSON.stringify(resultado)}, "${tipo}")'>
+              <strong>${nombreCorto}</strong>
+              <span>${resultado.display_name}</span>
+            </div>
+          `;
+        }
+
+        contenedor.innerHTML = html;
+        contenedor.style.display = "block";
+      }
+
+      // Función para seleccionar una sugerencia
+      function seleccionarSugerencia(resultado, tipo) {
+        colocarMarcador(resultado, tipo);
+
+        // Ocultar sugerencias
+        var contenedorId =
+          tipo === "origen" ? "sugerenciasOrigen" : "sugerenciasDestino";
+        document.getElementById(contenedorId).style.display = "none";
+
+        // Si ambos marcadores están colocados, actualizar
+        if (origenMarker && destinoMarker) {
+          mostrarCoordenadas();
+          dibujarRuta();
+          document.getElementById("resultadoBusqueda").innerHTML =
+            "✅ Direcciones encontradas. Revisa el costo y haz clic en 'Reservar esta ruta'.";
+          document.getElementById("resultadoBusqueda").style.display = "block";
+        } else {
+          document.getElementById("resultadoBusqueda").innerHTML =
+            "✅ Dirección encontrada en el mapa.";
+          document.getElementById("resultadoBusqueda").style.display = "block";
+          mostrarCoordenadas();
+        }
+      }
+
+      // Función para colocar marcador en el mapa
+      function colocarMarcador(resultado, tipo) {
+        var lat = parseFloat(resultado.lat);
+        var lon = parseFloat(resultado.lon);
+        var emoji = tipo === "origen" ? "📍" : "🎯";
+
+        if (tipo === "origen") {
+          if (origenMarker) {
+            map.removeLayer(origenMarker);
+          }
+          origenMarker = L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(emoji + " Origen: " + resultado.display_name)
+            .openPopup();
+          map.setView([lat, lon], 13);
+        } else {
+          if (destinoMarker) {
+            map.removeLayer(destinoMarker);
+          }
+          destinoMarker = L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(emoji + " Destino: " + resultado.display_name)
+            .openPopup();
+          if (!origenMarker) {
+            map.setView([lat, lon], 13);
+          }
+        }
+      }
+
+      // Permitir buscar con Enter
+      document
+        .getElementById("buscarOrigen")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            buscarDirecciones();
+          }
+        });
+
+      document
+        .getElementById("buscarDestino")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            buscarDirecciones();
+          }
+        });
+
+      // Función para rutas predefinidas
+      function seleccionarRutaPredefinida(origen, destino, costo) {
+        var rutaTexto = `Origen: ${origen}\nDestino: ${destino}`;
+        document.getElementById("ruta").value = rutaTexto;
+        document.getElementById("costoHidden").value = costo;
+        document.getElementById("resumenRuta").innerHTML =
+          `<strong>Ruta:</strong> ${origen} → ${destino}`;
+        document.getElementById("resumenCosto").innerHTML =
+          `💰 Total: RD$ ${costo}`;
+
+        document.getElementById("modalOverlay").style.display = "block";
+        document.getElementById("reservaForm").style.display = "block";
+
+        // Scroll suave hacia arriba
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Cerrar modal al hacer clic en el overlay
+      document.getElementById("modalOverlay").onclick = function () {
+        document.getElementById("modalOverlay").style.display = "none";
+        document.getElementById("reservaForm").style.display = "none";
+      };
+
+      // Cerrar modal con botón X
+      document.getElementById("cerrarForm").onclick = function () {
+        document.getElementById("modalOverlay").style.display = "none";
+        document.getElementById("reservaForm").style.display = "none";
+      };
+
+      // Enviar formulario de reserva
+      document.getElementById("reservaForm").onsubmit = function (e) {
+        e.preventDefault();
+
+        var nombre = document.getElementById("nombre").value;
+        var telefono = document.getElementById("telefono").value;
+        var fechaSalida = document.getElementById("fechaSalida").value;
+        var horaSalida = document.getElementById("horaSalida").value;
+        var fechaRegreso = document.getElementById("fechaRegreso").value;
+        var horaRegreso = document.getElementById("horaRegreso").value;
+        var pasajeros = document.getElementById("pasajeros").value;
+        var ruta = document.getElementById("ruta").value;
+        var costo = document.getElementById("costoHidden").value;
+
+        // Validar fecha
+        var hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        var fechaSeleccionada = new Date(fechaSalida);
+
+        if (fechaSeleccionada < hoy) {
+          alert("⚠️ La fecha de salida no puede ser anterior a hoy.");
+          return;
+        }
+
+        // Guardar en Firebase
+        db.ref("reservas")
+          .push({
+            nombre: nombre,
+            telefono: telefono,
+            fechaSalida: fechaSalida,
+            horaSalida: horaSalida,
+            fechaRegreso: fechaRegreso || "No aplica",
+            horaRegreso: horaRegreso || "No aplica",
+            pasajeros: pasajeros,
+            ruta: ruta,
+            costo: costo,
+            fecha: new Date().toISOString(),
+            estado: "Pendiente",
+          })
+          .then(function () {
+            alert(
+              "✅ ¡Reserva guardada exitosamente!\n\nRecibirás una confirmación pronto al número proporcionado.",
+            );
+            document.getElementById("reservaForm").reset();
+            document.getElementById("modalOverlay").style.display = "none";
+            document.getElementById("reservaForm").style.display = "none";
+
+            // Reiniciar mapa
+            document.getElementById("resetMap").click();
+          })
+          .catch(function (error) {
+            console.error("Error al guardar en Firebase:", error);
+            alert(
+              "❌ Error al guardar la reserva. Por favor intenta nuevamente.",
+            );
+          });
+      };
+
+      // Establecer fecha mínima como hoy
+      var hoy = new Date().toISOString().split("T")[0];
+      document.getElementById("fechaSalida").setAttribute("min", hoy);
+      document.getElementById("fechaRegreso").setAttribute("min", hoy);
+    </script>
+  </body>
+</html>
